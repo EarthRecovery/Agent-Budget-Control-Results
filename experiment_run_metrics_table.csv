@@ -1,0 +1,25 @@
+benchmark,model,total tokens,success rate,reward>0 rate,complete,complete ratio,multi-turn
+sokoban,Qwen32B-Think,N/A,0.20%,0.20%,512/0,inf,yes
+sokoban,Qwen32B-Instant,N/A,0.00%,0.00%,512/0,inf,yes
+sokoban,GPT5.2-Think,N/A,83.79%,83.79%,510/2,255.00x,yes
+sokoban,GPT5.2-Instant,N/A,69.92%,69.92%,440/72,6.11x,yes
+webshop,Qwen32B-Think,N/A,3.32%,3.32%,512/0,inf,yes
+webshop,Qwen32B-Instant,N/A,0.00%,0.00%,512/0,inf,yes
+webshop,GPT5.2-Think,7.06M,39.06%,39.06%,512/0,inf,yes
+webshop,GPT5.2-Instant,5.34M,32.42%,32.42%,512/0,inf,yes
+frozen-lake,Qwen32B-Think,N/A,0.00%,0.00%,512/0,inf,yes
+frozen-lake,Qwen32B-Instant,N/A,0.00%,0.00%,512/0,inf,yes
+frozen-lake,GPT5.2-Think,2.60M,86.52%,86.52%,386/126,3.06x,yes
+frozen-lake,GPT5.2-Instant,1.19M,99.41%,99.41%,511/1,511.00x,yes
+deepcoder,Qwen32B-Think,N/A,0.00%,0.00%,512/0,inf,no
+deepcoder,Qwen32B-Instant,N/A,0.00%,0.00%,512/0,inf,no
+deepcoder,GPT5.2-Think,244.24K,11.91%,11.91%,155/357,0.43x,no
+deepcoder,GPT5.2-Instant,586.17K,22.46%,22.46%,402/110,3.65x,no
+search-r1,Qwen32B-Think,N/A,2.93%,2.93%,512/0,inf,yes
+search-r1,Qwen32B-Instant,N/A,0.00%,0.00%,512/0,inf,yes
+search-r1,GPT5.2-Think,1.22M,61.91%,61.91%,475/37,12.84x,yes
+search-r1,GPT5.2-Instant,736.38K,54.10%,54.10%,502/10,50.20x,yes
+gpqa-main,Qwen32B-Think,N/A,0.00%,0.00%,512/0,inf,no
+gpqa-main,Qwen32B-Instant,N/A,0.00%,0.00%,512/0,inf,no
+gpqa-main,GPT5.2-Think,N/A,74.61%,74.61%,458/54,8.48x,no
+gpqa-main,GPT5.2-Instant,N/A,67.77%,67.77%,471/41,11.49x,no

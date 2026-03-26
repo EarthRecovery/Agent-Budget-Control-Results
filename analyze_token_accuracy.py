@@ -7,6 +7,58 @@ from statistics import mean, median
 from typing import Any, Dict, Iterable, List, Optional
 
 
+def coerce_optional_int(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def extract_total_tokens(record: Dict[str, Any]) -> Optional[int]:
+    total_tokens = coerce_optional_int(record.get("api_total_tokens"))
+    if total_tokens is not None:
+        return total_tokens
+
+    input_tokens = coerce_optional_int(record.get("api_input_tokens"))
+    output_tokens = coerce_optional_int(record.get("api_output_tokens"))
+    if input_tokens is None or output_tokens is None:
+        return None
+    return input_tokens + output_tokens
+
+
+def compute_total_used_tokens(payload: Any) -> float:
+    if not isinstance(payload, list):
+        return math.nan
+
+    env_totals: List[int] = []
+    for env_record in payload:
+        if not isinstance(env_record, dict):
+            continue
+
+        env_total_tokens = extract_total_tokens(env_record)
+        if env_total_tokens is not None:
+            env_totals.append(env_total_tokens)
+            continue
+
+        turns = env_record.get("turns", [])
+        if not isinstance(turns, list):
+            continue
+
+        turn_totals = [
+            total_tokens
+            for turn in turns
+            if isinstance(turn, dict)
+            for total_tokens in [extract_total_tokens(turn)]
+            if total_tokens is not None
+        ]
+        if turn_totals:
+            env_totals.append(sum(turn_totals))
+
+    return float(sum(env_totals)) if env_totals else math.nan
+
+
 def compute_estimation_factor(estimate_tokens: Optional[int], actual_tokens: Optional[int]) -> Dict[str, Optional[float]]:
     if estimate_tokens is None or actual_tokens is None:
         return {"factor": 0.0, "diff": None, "error_ratio": None}
@@ -45,6 +97,7 @@ def load_payload(path: Path) -> Any:
 def summarize_file(path: Path) -> Dict[str, Any]:
     payload = load_payload(path)
     turns = list(iter_turns(payload))
+    total_used_tokens = compute_total_used_tokens(payload)
 
     total_turns = len(turns)
     generation_error_turns = 0
@@ -102,6 +155,7 @@ def summarize_file(path: Path) -> Dict[str, Any]:
         "valid_turns": len(valid_rows),
         "generation_error_turns": generation_error_turns,
         "missing_estimate_turns": missing_estimate_turns,
+        "total_used_tokens": total_used_tokens,
         "coverage_rate": (len(valid_rows) / total_turns) if total_turns else 0.0,
         "exact_match_rate": exact_match_rate,
         "overestimate_rate": overestimate_rate,
@@ -135,12 +189,21 @@ def format_percent(value: float) -> str:
     return f"{value * 100.0:6.2f}%"
 
 
+def format_int_or_nan(value: Any) -> str:
+    if value is None:
+        return "nan"
+    if isinstance(value, float) and math.isnan(value):
+        return "nan"
+    return str(int(value))
+
+
 def print_summary(summary: Dict[str, Any]) -> None:
     print(f"\n== {Path(summary['file']).name} ==")
     print(f"total_turns           : {summary['total_turns']}")
     print(f"valid_turns           : {summary['valid_turns']}")
     print(f"generation_errors     : {summary['generation_error_turns']}")
     print(f"missing_estimates     : {summary['missing_estimate_turns']}")
+    print(f"total_used_tokens     : {format_int_or_nan(summary['total_used_tokens'])}")
     print(f"coverage_rate         : {format_percent(summary['coverage_rate'])}")
     print(f"exact_match_rate      : {format_percent(summary['exact_match_rate'])}")
     print(f"overestimate_rate     : {format_percent(summary['overestimate_rate'])}")
