@@ -59,16 +59,18 @@ def compute_total_used_tokens(payload: Any) -> float:
     return float(sum(env_totals)) if env_totals else math.nan
 
 
-def compute_estimation_factor(estimate_tokens: Optional[int], actual_tokens: Optional[int]) -> Dict[str, Optional[float]]:
+def compute_relative_error_metrics(
+    estimate_tokens: Optional[int],
+    actual_tokens: Optional[int],
+) -> Dict[str, Optional[float]]:
     if estimate_tokens is None or actual_tokens is None:
-        return {"factor": 0.0, "diff": None, "error_ratio": None}
+        return {"relative_error": None, "diff": None, "error_ratio": None}
 
     actual = max(1, int(actual_tokens))
     estimate = max(0, int(estimate_tokens))
     diff = int(estimate - actual)
     error_ratio = float(abs(diff) / float(actual))
-    factor = float(max(0.0, 1.0 - error_ratio))
-    return {"factor": factor, "diff": diff, "error_ratio": error_ratio}
+    return {"relative_error": error_ratio, "diff": diff, "error_ratio": error_ratio}
 
 
 def iter_turns(payload: Any) -> Iterable[Dict[str, Any]]:
@@ -92,6 +94,22 @@ def iter_turns(payload: Any) -> Iterable[Dict[str, Any]]:
 def load_payload(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def resolve_default_paths() -> List[Path]:
+    candidates = [Path.cwd(), Path.cwd() / "estimation-datasets"]
+    paths: List[Path] = []
+    seen = set()
+    for directory in candidates:
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.json")):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            paths.append(resolved)
+    return paths
 
 
 def summarize_file(path: Path) -> Dict[str, Any]:
@@ -121,7 +139,7 @@ def summarize_file(path: Path) -> Dict[str, Any]:
         if actual_token is None:
             continue
 
-        metrics = compute_estimation_factor(int(estimate_token), int(actual_token))
+        metrics = compute_relative_error_metrics(int(estimate_token), int(actual_token))
         valid_rows.append(
             {
                 "estimate_token": int(estimate_token),
@@ -129,7 +147,7 @@ def summarize_file(path: Path) -> Dict[str, Any]:
                 "diff": int(metrics["diff"]),
                 "abs_diff": abs(int(metrics["diff"])),
                 "error_ratio": float(metrics["error_ratio"]),
-                "accuracy": float(metrics["factor"]),
+                "relative_error": float(metrics["relative_error"]),
             }
         )
 
@@ -160,8 +178,12 @@ def summarize_file(path: Path) -> Dict[str, Any]:
         "exact_match_rate": exact_match_rate,
         "overestimate_rate": overestimate_rate,
         "underestimate_rate": underestimate_rate,
-        "mean_accuracy": mean(row["accuracy"] for row in valid_rows) if valid_rows else 0.0,
-        "median_accuracy": median(row["accuracy"] for row in valid_rows) if valid_rows else 0.0,
+        "mean_relative_error": (
+            mean(row["relative_error"] for row in valid_rows) if valid_rows else 0.0
+        ),
+        "median_relative_error": (
+            median(row["relative_error"] for row in valid_rows) if valid_rows else 0.0
+        ),
         "mean_abs_error": mean(row["abs_diff"] for row in valid_rows) if valid_rows else 0.0,
         "median_abs_error": median(row["abs_diff"] for row in valid_rows) if valid_rows else 0.0,
         "mean_signed_error": mean(row["diff"] for row in valid_rows) if valid_rows else 0.0,
@@ -208,8 +230,8 @@ def print_summary(summary: Dict[str, Any]) -> None:
     print(f"exact_match_rate      : {format_percent(summary['exact_match_rate'])}")
     print(f"overestimate_rate     : {format_percent(summary['overestimate_rate'])}")
     print(f"underestimate_rate    : {format_percent(summary['underestimate_rate'])}")
-    print(f"mean_accuracy         : {summary['mean_accuracy']:.4f}")
-    print(f"median_accuracy       : {summary['median_accuracy']:.4f}")
+    print(f"mean_relative_error   : {summary['mean_relative_error']:.4f}")
+    print(f"median_relative_error : {summary['median_relative_error']:.4f}")
     print(f"mean_abs_error        : {summary['mean_abs_error']:.2f}")
     print(f"median_abs_error      : {summary['median_abs_error']:.2f}")
     print(f"mean_signed_error     : {summary['mean_signed_error']:.2f}")
@@ -222,7 +244,7 @@ def print_summary(summary: Dict[str, Any]) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Analyze token estimation accuracy from benchmark dialogue JSON files."
+        description="Analyze token estimation relative error from benchmark dialogue JSON files."
     )
     parser.add_argument(
         "paths",
@@ -240,7 +262,7 @@ def parse_args() -> argparse.Namespace:
 def resolve_paths(raw_paths: List[str]) -> List[Path]:
     if raw_paths:
         return [Path(path).expanduser().resolve() for path in raw_paths]
-    return sorted(Path.cwd().glob("*.json"))
+    return resolve_default_paths()
 
 
 def main() -> int:

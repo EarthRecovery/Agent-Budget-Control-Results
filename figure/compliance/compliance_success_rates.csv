@@ -1,0 +1,11 @@
+source_dir,source_json_count,label,budget_type,budget_limit,total_samples,raw_success_count,within_budget_count,success_count,success_rate
+gpqa-main-compliance-token-qwen3-32b-instant-512-test,1,gpqa main compliance token qwen3 32b instant 512 test,token,100,512,189,283,154.05747622266816,0.30089350824739874
+gpqa-main-compliance-token-qwen3-32b-instant-512-test,1,gpqa main compliance token qwen3 32b instant 512 test,token,200,512,186,362,158.35273329808533,0.3092826822228229
+gpqa-main-compliance-token-qwen3-32b-instant-512-test,1,gpqa main compliance token qwen3 32b instant 512 test,token,300,512,179,389,158.7019133692218,0.30996467454926135
+gpqa-main-compliance-token-qwen3-32b-instant-512-test,1,gpqa main compliance token qwen3 32b instant 512 test,token,400,512,175,392,159.1756457791931,0.31088993316248653
+gpqa-main-compliance-token-qwen3-32b-instant-512-test,1,gpqa main compliance token qwen3 32b instant 512 test,token,500,512,190,416,175.73733182622186,0.3432369762230896
+gpqa-main-compliance-token-qwen3-32b-thinking-512-test,1,gpqa main compliance token qwen3 32b thinking 512 test,token,100,512,219,0,33.44024964737033,0.06531298759252017
+gpqa-main-compliance-token-qwen3-32b-thinking-512-test,1,gpqa main compliance token qwen3 32b thinking 512 test,token,200,512,198,3,54.4955654113654,0.10643665119407304
+gpqa-main-compliance-token-qwen3-32b-thinking-512-test,1,gpqa main compliance token qwen3 32b thinking 512 test,token,300,512,194,7,79.06530394034031,0.15442442175847718
+gpqa-main-compliance-token-qwen3-32b-thinking-512-test,1,gpqa main compliance token qwen3 32b thinking 512 test,token,400,512,189,27,96.74956078467795,0.18896398590757413
+gpqa-main-compliance-token-qwen3-32b-thinking-512-test,1,gpqa main compliance token qwen3 32b thinking 512 test,token,500,512,185,43,112.41706781263798,0.21956458557155856

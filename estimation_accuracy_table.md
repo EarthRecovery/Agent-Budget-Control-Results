@@ -1,10 +1,10 @@
 | benchmark | Qwen32B-Think | Qwen32B-Instant | GPT5.2-Think | GPT5.2-Instant | multi-turn |
 | --- | --- | --- | --- | --- | --- |
-| sokoban | turn 46.66%<br>token 1.52% | turn 46.73%<br>token 0.77% | turn 76.68%<br>token 73.00% | turn 59.58%<br>token 70.98% | yes |
-| webshop | turn 56.56%<br>token 55.59% | turn 59.11%<br>token 64.20% | turn 88.13%<br>token 82.87% | turn 70.62%<br>token 73.81% | yes |
-| frozen-lake | turn 53.31%<br>token 0.72% | turn 67.63%<br>token 0.89% | turn 69.65%<br>token 77.45% | turn 80.46%<br>token 63.42% | yes |
-| deepcoder | 53.78% | 57.08% | 73.08% | 63.60% | no |
-| search-r1 | turn 54.05%<br>token 57.03% | turn 56.51%<br>token 40.28% | turn 74.49%<br>token 75.68% | turn 77.67%<br>token 65.05% | yes |
-| gpqa-main | 34.48% | 30.45% | 66.93% | 48.78% | no |
+| sokoban | turn err 71.85%<br>token err 98.48% | turn err 81.45%<br>token err 99.23% | turn err 29.68%<br>token err 27.24% | turn err 825.24%<br>token err 29.02% | yes |
+| webshop | turn err 48.89%<br>token err 44.81% | turn err 41.48%<br>token err 35.80% | turn err 12.10%<br>token err 17.14% | turn err 34.34%<br>token err 26.19% | yes |
+| frozen-lake | turn err 66.42%<br>token err 99.28% | turn err 40.04%<br>token err 99.11% | turn err 37.09%<br>token err 22.55% | turn err 20.36%<br>token err 36.59% | yes |
+| deepcoder | token err 258.53% | token err 48.48% | token err 27.26% | token err 38.40% | no |
+| search-r1 | turn err 48.97%<br>token err 43.00% | turn err 44.15%<br>token err 59.73% | turn err 33.63%<br>token err 24.32% | turn err 34.11%<br>token err 34.95% | yes |
+| gpqa-main | token err 68.51% | token err 73.22% | token err 33.26% | token err 52.01% | no |
 
-Accuracy = mean(max(0, 1 - |estimate - actual| / max(1, actual))) over valid turns.
+Relative error = mean(|estimate - actual| / max(1, actual)) over valid turns.

@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parent
-INPUT_GLOB = "*.json"
+DATASET_DIR = ROOT / "estimation-datasets"
 
 BENCHMARK_LABELS = {
     "CoordSokoban": "sokoban",
@@ -46,13 +46,12 @@ def coerce_optional_int(value: Any) -> Optional[int]:
         return None
 
 
-def compute_accuracy_factor(estimate: Optional[int], actual: Optional[int]) -> Optional[float]:
+def compute_relative_error(estimate: Optional[int], actual: Optional[int]) -> Optional[float]:
     if estimate is None or actual is None:
         return None
     actual_value = max(1, int(actual))
     estimate_value = max(0, int(estimate))
-    error_ratio = abs(estimate_value - actual_value) / float(actual_value)
-    return max(0.0, 1.0 - error_ratio)
+    return abs(estimate_value - actual_value) / float(actual_value)
 
 
 def mean_or_none(values: Sequence[float]) -> Optional[float]:
@@ -179,6 +178,21 @@ def detect_benchmark(payload: Any, path: Path) -> str:
     raise ValueError(f"Unable to detect benchmark for file: {path.name}")
 
 
+def collect_json_paths() -> List[Path]:
+    paths: List[Path] = []
+    seen: set[Path] = set()
+    for directory in (ROOT, DATASET_DIR):
+        if not directory.exists():
+            continue
+        for path in sorted(directory.glob("*.json")):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            paths.append(path)
+    return paths
+
+
 def summarize_file(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
@@ -190,8 +204,8 @@ def summarize_file(path: Path) -> Dict[str, Any]:
         mode = payload[0].get("mode")
     multi_turn = mode == "multi"
 
-    token_scores: List[float] = []
-    turn_scores: List[float] = []
+    token_errors: List[float] = []
+    turn_errors: List[float] = []
     total_turns = 0
     token_valid_turns = 0
     turn_valid_turns = 0
@@ -203,21 +217,21 @@ def summarize_file(path: Path) -> Dict[str, Any]:
         if generation_error is not None or generation_success is False:
             continue
 
-        token_score = compute_accuracy_factor(
+        token_error = compute_relative_error(
             coerce_optional_int(turn.get("estimate_token")),
             coerce_optional_int(turn.get("actual_token")),
         )
-        if token_score is not None:
-            token_scores.append(token_score)
+        if token_error is not None:
+            token_errors.append(token_error)
             token_valid_turns += 1
 
         if multi_turn:
-            turn_score = compute_accuracy_factor(
+            turn_error = compute_relative_error(
                 coerce_optional_int(turn.get("estimate_remaining_turn")),
                 coerce_optional_int(turn.get("actual_remaining_turn")),
             )
-            if turn_score is not None:
-                turn_scores.append(turn_score)
+            if turn_error is not None:
+                turn_errors.append(turn_error)
                 turn_valid_turns += 1
 
     return {
@@ -229,8 +243,8 @@ def summarize_file(path: Path) -> Dict[str, Any]:
         "total_turns": total_turns,
         "token_valid_turns": token_valid_turns,
         "turn_valid_turns": turn_valid_turns,
-        "token_accuracy": mean_or_none(token_scores),
-        "turn_accuracy": mean_or_none(turn_scores),
+        "token_relative_error": mean_or_none(token_errors),
+        "turn_relative_error": mean_or_none(turn_errors),
     }
 
 
@@ -467,10 +481,10 @@ def cell_text(row: Dict[str, Any], *, multiline: bool) -> str:
     if row["multi_turn"]:
         sep = "\n" if multiline else " | "
         return (
-            f"turn {format_pct(row['turn_accuracy'])}"
-            f"{sep}token {format_pct(row['token_accuracy'])}"
+            f"turn err {format_pct(row['turn_relative_error'])}"
+            f"{sep}token err {format_pct(row['token_relative_error'])}"
         )
-    return format_pct(row["token_accuracy"])
+    return f"token err {format_pct(row['token_relative_error'])}"
 
 
 def build_table(rows: List[Dict[str, Any]], *, multiline: bool) -> Tuple[List[str], List[List[str]]]:
@@ -525,8 +539,8 @@ def write_long_csv(rows: List[Dict[str, Any]], path: Path) -> None:
         "model",
         "multi_turn",
         "mode",
-        "token_accuracy",
-        "turn_accuracy",
+        "token_relative_error",
+        "turn_relative_error",
         "token_valid_turns",
         "turn_valid_turns",
         "total_turns",
@@ -542,8 +556,16 @@ def write_long_csv(rows: List[Dict[str, Any]], path: Path) -> None:
                     "model": row["model"],
                     "multi_turn": row["multi_turn"],
                     "mode": row["mode"],
-                    "token_accuracy": f"{row['token_accuracy']:.6f}" if row["token_accuracy"] is not None else "",
-                    "turn_accuracy": f"{row['turn_accuracy']:.6f}" if row["turn_accuracy"] is not None else "",
+                    "token_relative_error": (
+                        f"{row['token_relative_error']:.6f}"
+                        if row["token_relative_error"] is not None
+                        else ""
+                    ),
+                    "turn_relative_error": (
+                        f"{row['turn_relative_error']:.6f}"
+                        if row["turn_relative_error"] is not None
+                        else ""
+                    ),
                     "token_valid_turns": row["token_valid_turns"],
                     "turn_valid_turns": row["turn_valid_turns"],
                     "total_turns": row["total_turns"],
@@ -838,12 +860,15 @@ def draw_table_png(headers: List[str], table_rows: List[List[str]], path: Path, 
 
 
 def main() -> int:
-    json_paths = sorted(ROOT.glob(INPUT_GLOB))
-    accuracy_rows = ordered_rows([summarize_file(path) for path in json_paths])
+    json_paths = collect_json_paths()
+    if not json_paths:
+        raise SystemExit(f"No JSON files found in {ROOT} or {DATASET_DIR}.")
+
+    relative_error_rows = ordered_rows([summarize_file(path) for path in json_paths])
     run_metric_rows = ordered_rows([summarize_run_metrics(path) for path in json_paths])
     usage_stat_rows = ordered_rows([summarize_usage_stats(path) for path in json_paths])
 
-    accuracy_note = "Accuracy = mean(max(0, 1 - |estimate - actual| / max(1, actual))) over valid turns."
+    relative_error_note = "Relative error = mean(|estimate - actual| / max(1, actual)) over valid turns."
     run_metrics_note = (
         "Tokens = total observed API tokens across all records; N/A means token fields are missing.\n"
         "Success rate = successful final outcomes / unique env_id. Reward>0 rate = final-turn reward > 0 / unique env_id.\n"
@@ -860,13 +885,23 @@ def main() -> int:
     accuracy_markdown_path = ROOT / "estimation_accuracy_table.md"
     accuracy_png_path = ROOT / "estimation_accuracy_table.png"
 
-    accuracy_headers_csv, accuracy_table_rows_csv = build_table(accuracy_rows, multiline=False)
-    accuracy_headers_png, accuracy_table_rows_png = build_table(accuracy_rows, multiline=True)
+    accuracy_headers_csv, accuracy_table_rows_csv = build_table(relative_error_rows, multiline=False)
+    accuracy_headers_png, accuracy_table_rows_png = build_table(relative_error_rows, multiline=True)
 
-    write_long_csv(accuracy_rows, accuracy_long_csv_path)
+    write_long_csv(relative_error_rows, accuracy_long_csv_path)
     write_table_csv(accuracy_headers_csv, accuracy_table_rows_csv, accuracy_table_csv_path)
-    write_markdown(accuracy_headers_csv, accuracy_table_rows_csv, accuracy_markdown_path, accuracy_note)
-    draw_table_png(accuracy_headers_png, accuracy_table_rows_png, accuracy_png_path, accuracy_note)
+    write_markdown(
+        accuracy_headers_csv,
+        accuracy_table_rows_csv,
+        accuracy_markdown_path,
+        relative_error_note,
+    )
+    draw_table_png(
+        accuracy_headers_png,
+        accuracy_table_rows_png,
+        accuracy_png_path,
+        relative_error_note,
+    )
 
     run_metrics_long_csv_path = ROOT / "experiment_run_metrics_long.csv"
     run_metrics_table_csv_path = ROOT / "experiment_run_metrics_table.csv"
